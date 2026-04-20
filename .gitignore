@@ -1,0 +1,4 @@
+node_modules
+.env
+dist
+WS_SERVER_INSTRUCTIONS.md

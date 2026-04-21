@@ -2,6 +2,8 @@ import "dotenv/config";
 import express from "express";
 import http from "node:http";
 import { Server } from "socket.io";
+
+import type { DriveUpdatedPayload } from "./types/driveEvents.js";
 import { requirePublishAuth } from "./middleware/requirePublishAuth.js";
 
 const app = express();
@@ -25,7 +27,21 @@ io.on("connection", (socket) => {
 
 // Publish endpoint (backend -> all connected clients)
 app.post("/events/drive-updated", requirePublishAuth, (req, res) => {
-  io.emit("drive-updated", req.body);
+  const ddid = typeof req.body?.ddid === "string" ? req.body.ddid : undefined;
+
+  if (!ddid) {
+    res.status(400).json({ ok: false, error: "Drive ID is required" });
+    return;
+  }
+
+  const payload: DriveUpdatedPayload = {
+    type: "drive-updated",
+    ddid,
+    at: new Date().toISOString(),
+  };
+
+  io.emit("drive-updated", payload);
+
   res.json({ ok: true });
 });
 

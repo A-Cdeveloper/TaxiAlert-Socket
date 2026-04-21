@@ -9,8 +9,15 @@ import { requirePublishAuth } from "./middleware/requirePublishAuth.js";
 const app = express();
 const port = Number(process.env.PORT ?? "3001");
 const httpServer = http.createServer(app);
+const allowedOrigins = (process.env.WS_ALLOWED_ORIGINS ?? "http://localhost:3000")
+  .split(",")
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 const io = new Server(httpServer, {
-  cors: { origin: "*" },
+  cors: {
+    origin: allowedOrigins,
+    methods: ["GET", "POST"],
+  },
 });
 
 // Middleware

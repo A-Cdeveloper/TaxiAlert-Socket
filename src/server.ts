@@ -16,6 +16,11 @@ const io = new Server(httpServer, {
 // Middleware
 app.use(express.json());
 
+// Health check
+app.get("/health", (_req, res) => {
+  res.json({ ok: true });
+});
+
 // Socket lifecycle
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id);

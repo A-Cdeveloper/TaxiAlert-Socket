@@ -1,168 +1,133 @@
 # TaxiAlert Socket Server
 
-Real-time notification service for the TaxiAlert platform. It accepts drive lifecycle signals from the primary backend and pushes updates to connected driver clients so map views stay in sync without polling.
+Realtime Socket.IO service for TaxiAlert.  
+It receives backend publish events and broadcasts normalized `drive-updated` messages to all connected clients.
 
----
+## Current Features
 
-## Overview
+- Express + Socket.IO running on the same HTTP server
+- `GET /health` liveness endpoint
+- `POST /events/drive-updated` publish endpoint
+- Publish auth middleware using `Authorization: Bearer <WS_PUBLISH_SECRET>`
+- Typed broadcast payload contract (`DriveUpdatedPayload`)
+- CORS origin allowlist via `WS_ALLOWED_ORIGINS`
 
-| Aspect            | Description                                                                |
-| ----------------- | -------------------------------------------------------------------------- |
-| **Role**          | Dedicated Socket.IO layer between the TaxiAlert API and driver map clients |
-| **Primary event** | `drive-updated`                                                            |
-| **Transport**     | Socket.IO over HTTP (WebSocket with fallback where applicable)             |
-| **Runtime**       | Node.js, TypeScript, Express                                               |
+## Tech Stack
 
-The service is intentionally narrow in scope: it does not own business logic for drives; it relays authoritative state changes emitted by the backend.
+- Node.js
+- TypeScript
+- Express
+- Socket.IO
+- dotenv
 
----
+## Project Structure
 
-## Responsibilities
-
-1.  **Driver connections** — Accept authenticated Socket.IO connections from clients that display the live map.
-2.  **Backend publish** — Expose a controlled HTTP endpoint (or equivalent) so the backend can signal that a drive changed.
-3.  **Broadcast** — Fan out `drive-updated` to all connected clients (MVP: global broadcast).
-
----
-
-## MVP scope
-
-**In scope**
-
-- Socket.IO server integrated with Express
-- HTTP endpoint for backend-triggered publishes
-- Broadcast of `drive-updated` to connected sockets
-- Basic authentication for driver sockets and for the publish endpoint
-
-**Out of scope (later)**
-
-- Horizontal scaling via Redis adapter / pub-sub
-- Fine-grained rooms (e.g. per city or region)
-- Durable event log or replay
-
----
-
-## Tech stack
-
-- **Node.js** — runtime
-- **TypeScript** — type-safe server code
-- **Express** — HTTP surface (health, publish)
-- **Socket.IO** — real-time client channel
-- **dotenv** — environment configuration
-
----
-
-## Repository layout
-
-```
+```text
 src/
-  server.ts          # Application entry; HTTP + Socket.IO bootstrap
-  socket/
-    index.ts         # Socket connection and event registration
+  server.ts
+  middleware/
+    requirePublishAuth.ts
   types/
-    events.ts        # Shared event and payload types
+    driveEvents.ts
 ```
 
----
+## Setup
 
-## Prerequisites
+### 1) Install
 
-- Node.js LTS (recommended: current Active LTS)
-- npm (or compatible package manager)
-
----
-
-## Installation
-
-```
+```bash
 npm install
 ```
 
----
+### 2) Environment
 
-## Configuration
+Create `.env` in project root:
 
-Create a `.env` file in the project root (do not commit secrets). Minimum for local development:
-
-```
+```env
 PORT=3001
+WS_PUBLISH_SECRET=change_this_secret
+WS_ALLOWED_ORIGINS=http://localhost:3000
 ```
 
-Variables planned for production-hardening:
+For multiple allowed origins:
 
-| Variable             | Purpose                                                                  |
-| -------------------- | ------------------------------------------------------------------------ |
-| `WS_ALLOWED_ORIGINS` | CORS / Socket.IO origin allowlist (e.g. `https://app.taxialert.example`) |
-| `WS_PUBLISH_SECRET`  | Shared secret for backend publish requests                               |
-| `JWT_SECRET`         | Validation of driver tokens if aligned with the main API                 |
-
----
-
-## Scripts
-
-| Command         | Description                                     |
-| --------------- | ----------------------------------------------- |
-| `npm run dev`   | Development server with file watch (`tsx`)      |
-| `npm run build` | Compile TypeScript to `dist/`                   |
-| `npm start`     | Run the compiled server (`node dist/server.js`) |
-
----
-
-## Event contract (MVP)
-
-Backend and clients should treat the following shape as the canonical payload for drive refresh signals:
-
+```env
+WS_ALLOWED_ORIGINS=http://localhost:3000,https://app.example.com
 ```
+
+### 3) Run
+
+```bash
+npm run dev
+```
+
+### 4) Build / Start
+
+```bash
+npm run build
+npm start
+```
+
+## Available Scripts
+
+- `npm run dev` - run dev server with `tsx watch`
+- `npm run build` - compile TypeScript to `dist`
+- `npm start` - run compiled server from `dist/server.js`
+
+## API
+
+### `GET /health`
+
+Response:
+
+```json
+{ "ok": true }
+```
+
+### `POST /events/drive-updated`
+
+Headers:
+
+- `Authorization: Bearer <WS_PUBLISH_SECRET>`
+- `Content-Type: application/json`
+
+Request body:
+
+```json
+{ "ddid": "drive-123" }
+```
+
+Validation:
+
+- returns `400` when `ddid` is missing/invalid
+- returns `401` when auth token is invalid
+- returns `500` when `WS_PUBLISH_SECRET` is not configured
+
+Broadcast payload emitted to clients:
+
+```json
 {
   "type": "drive-updated",
-  "ddid": "cmxxxx...",
-  "at": "2026-04-15T12:34:56.000Z"
+  "ddid": "drive-123",
+  "at": "2026-04-21T12:34:56.000Z"
 }
 ```
 
-| Field  | Requirement | Notes                                        |
-| ------ | ----------- | -------------------------------------------- |
-| `type` | Required    | Must be `drive-updated` for this channel     |
-| `ddid` | Recommended | Drive identifier for targeted client refresh |
-| `at`   | Optional    | ISO 8601 timestamp for tracing and support   |
+## Local Test Example
 
----
+```bash
+curl -X POST http://localhost:3001/events/drive-updated \
+  -H "Authorization: Bearer change_this_secret" \
+  -H "Content-Type: application/json" \
+  -d "{\"ddid\":\"drive-123\"}"
+```
 
-## Backend integration
+## Notes
 
-After successful mutations on the main API (for example: `createDrive`, `cancelDrive`, `pickupDrive`, `completeDrive`, `releaseDrivePickup`), the backend should call this service’s publish endpoint so drivers receive `drive-updated`.
-
-**Resilience:** Real-time delivery is best-effort. If the publish call fails, the primary transaction should still succeed; log the failure and optionally retry or alert according to your operations policy.
-
----
-
-## Security notes
-
-- Restrict the publish endpoint to trusted callers (network policy, shared secret, or mutual TLS as appropriate).
-- Validate driver identity on socket handshake before accepting long-lived connections.
-- Keep `.env` and secrets out of version control; rotate `WS_PUBLISH_SECRET` on the same schedule as other service credentials.
-
----
-
-## Operations
-
-Recommended baseline for production readiness:
-
-- Heartbeats and idle timeouts on connections
-- Client-side reconnection with backoff
-- Structured logging: connect, disconnect, publish received, broadcast count
-- Simple metrics: active connections, publish rate, error rate
-
----
-
-## Roadmap
-
-- Wire `server.ts` and `socket/index.ts` with a minimal health route and socket lifecycle logging
-- Centralize event types in `src/types/events.ts`
-- Implement authenticated publish and driver handshake
-
----
+- Keep `.env` out of version control
+- Rotate `WS_PUBLISH_SECRET` regularly
+- This service is intentionally focused on realtime event fan-out, not business logic ownership
 
 ## License
 
-ISC (see `package.json`).
+ISC

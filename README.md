@@ -11,6 +11,7 @@ It receives backend publish events and broadcasts normalized `drive-updated` mes
 - Publish auth middleware using `Authorization: Bearer <WS_PUBLISH_SECRET>`
 - Typed broadcast payload contract (`DriveUpdatedPayload`)
 - CORS origin allowlist via `WS_ALLOWED_ORIGINS`
+- Route/controller/service split for clearer backend architecture
 
 ## Tech Stack
 
@@ -25,10 +26,21 @@ It receives backend publish events and broadcasts normalized `drive-updated` mes
 ```text
 src/
   server.ts
+  controllers/
+    driveEvents.controller.ts
   middleware/
     requirePublishAuth.ts
+  routes/
+    driveEvents.router.ts
+    index.ts
+  services/
+    driveEventPublisher.service.ts
+  socket/
+    registerSocketHandlers.ts
+    index.ts
   types/
     driveEvents.ts
+    index.ts
 ```
 
 ## Setup
@@ -112,6 +124,24 @@ Broadcast payload emitted to clients:
   "at": "2026-04-21T12:34:56.000Z"
 }
 ```
+
+## Architecture Flow
+
+`server.ts` keeps only application wiring:
+
+- create Express app + HTTP server + Socket.IO
+- register middleware and health endpoint
+- register socket lifecycle handlers
+- mount drive event routes under `/events`
+
+Drive publish handling uses Option 1 layering:
+
+- **Router** (`src/routes/driveEvents.router.ts`)  
+  Defines endpoint and middleware chain.
+- **Controller** (`src/controllers/driveEvents.controller.ts`)  
+  Validates request input and orchestrates action.
+- **Service** (`src/services/driveEventPublisher.service.ts`)  
+  Builds typed payload and emits `drive-updated`.
 
 ## Local Test Example
 

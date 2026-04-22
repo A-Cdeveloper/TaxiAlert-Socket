@@ -11,6 +11,8 @@ It receives backend publish events and broadcasts normalized `drive-updated` mes
 - Publish auth middleware using `Authorization: Bearer <WS_PUBLISH_SECRET>`
 - Typed broadcast payload contract (`DriveUpdatedPayload`)
 - CORS origin allowlist via `WS_ALLOWED_ORIGINS`
+- Background polling to Next internal expire endpoint (`/api/cron/expire-drives`)
+- Poll dedupe (TTL) and overlap guard to prevent duplicate emits and parallel polls
 - Route/controller/service split for clearer backend architecture
 
 ## Tech Stack
@@ -35,6 +37,7 @@ src/
     index.ts
   services/
     driveEventPublisher.service.ts
+    expireDrivesPoller.service.ts
   socket/
     registerSocketHandlers.ts
     index.ts
@@ -59,6 +62,10 @@ Create `.env` in project root:
 PORT=3001
 WS_PUBLISH_SECRET=change_this_secret
 WS_ALLOWED_ORIGINS=http://localhost:3000
+NEXT_INTERNAL_BASE_URL=http://localhost:3000
+NEXT_INTERNAL_SECRET=change_this_internal_secret
+EXPIRE_POLL_INTERVAL_MS=10000
+EXPIRE_LOOKBACK_MS=15000
 ```
 
 For multiple allowed origins:
@@ -142,6 +149,13 @@ Drive publish handling uses Option 1 layering:
   Validates request input and orchestrates action.
 - **Service** (`src/services/driveEventPublisher.service.ts`)  
   Builds typed payload and emits `drive-updated`.
+
+Expire polling flow:
+
+- **Poller Service** (`src/services/expireDrivesPoller.service.ts`)
+- Calls `GET /api/cron/expire-drives` on Next backend with internal auth
+- Emits `drive-updated` for returned `ddids`
+- Uses dedupe TTL and overlap guard for stable behavior
 
 ## Local Test Example
 

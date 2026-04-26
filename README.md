@@ -8,6 +8,7 @@ It receives backend publish events and broadcasts normalized `drive-updated` mes
 - Express + Socket.IO running on the same HTTP server
 - `GET /health` liveness endpoint
 - `POST /events/drive-updated` publish endpoint
+- `POST /events/drive-lifecycle` client-scoped lifecycle endpoint
 - Publish auth middleware using `Authorization: Bearer <WS_PUBLISH_SECRET>`
 - Typed broadcast payload contract (`DriveUpdatedPayload`)
 - CORS origin allowlist via `WS_ALLOWED_ORIGINS`
@@ -30,6 +31,7 @@ src/
   server.ts
   controllers/
     driveEvents.controller.ts
+    driveLifecycle.controller.ts
   middleware/
     requirePublishAuth.ts
   routes/
@@ -37,12 +39,14 @@ src/
     index.ts
   services/
     driveEventPublisher.service.ts
+    driveLifecyclePublisher.service.ts
     expireDrivesPoller.service.ts
   socket/
     registerSocketHandlers.ts
     index.ts
   types/
     driveEvents.ts
+    driveLifecycle.ts
     index.ts
 ```
 
@@ -132,6 +136,42 @@ Broadcast payload emitted to clients:
 }
 ```
 
+### `POST /events/drive-lifecycle`
+
+Headers:
+
+- `Authorization: Bearer <WS_PUBLISH_SECRET>`
+- `Content-Type: application/json`
+
+Request body:
+
+```json
+{
+  "clientId": "uuid-string",
+  "driveId": "drive-ddid-string",
+  "eventType": "drive.picked_up",
+  "occurredAt": "2026-04-26T12:34:56.000Z"
+}
+```
+
+Allowed `eventType` values:
+
+- `drive.picked_up`
+- `drive.released`
+- `drive.completed`
+
+Validation:
+
+- returns `400` for invalid payload fields (`clientId`, `driveId`, `eventType`, `occurredAt`)
+- returns `401` when auth token is invalid
+- returns `500` when `WS_PUBLISH_SECRET` is not configured
+
+Socket behavior:
+
+- room target: `client:${clientId}`
+- event name: `drive-lifecycle`
+- payload: same as request body
+
 ## Architecture Flow
 
 `server.ts` keeps only application wiring:
@@ -150,6 +190,12 @@ Drive publish handling uses Option 1 layering:
 - **Service** (`src/services/driveEventPublisher.service.ts`)  
   Builds typed payload and emits `drive-updated`.
 
+Lifecycle publish flow:
+
+- **Controller** (`src/controllers/driveLifecycle.controller.ts`)
+- **Service** (`src/services/driveLifecyclePublisher.service.ts`)
+- Emits `drive-lifecycle` only to `client:${clientId}` room
+
 Expire polling flow:
 
 - **Poller Service** (`src/services/expireDrivesPoller.service.ts`)
@@ -164,6 +210,19 @@ curl -X POST http://localhost:3001/events/drive-updated \
   -H "Authorization: Bearer change_this_secret" \
   -H "Content-Type: application/json" \
   -d "{\"ddid\":\"drive-123\"}"
+```
+
+```bash
+curl -X POST http://localhost:3001/events/drive-lifecycle \
+  -H "Authorization: Bearer change_this_secret" \
+  -H "Content-Type: application/json" \
+  -d "{\"clientId\":\"client-123\",\"driveId\":\"drive-123\",\"eventType\":\"drive.picked_up\",\"occurredAt\":\"2026-04-26T12:34:56.000Z\"}"
+```
+
+Client-side room subscription example:
+
+```ts
+socket.emit("subscribe-client-room", { clientId: "client-123" });
 ```
 
 ## Notes

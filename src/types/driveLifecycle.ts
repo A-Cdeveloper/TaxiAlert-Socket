@@ -16,9 +16,22 @@ export type DriveLifecycleEventType =
 /**
  * Payload emitted to a client-specific room for lifecycle updates.
  */
+export type DriveLifecycleDriver = {
+  did: string;
+  firstname: string;
+  lastname: string;
+  phone: string;
+  car: string;
+  plateNumber: string;
+};
+
+/**
+ * Payload emitted to a client-specific room for lifecycle updates.
+ */
 export type DriveLifecyclePayload = {
   clientId: string;
   driveId: string;
   eventType: DriveLifecycleEventType;
   occurredAt: string;
+  driver?: DriveLifecycleDriver;
 };

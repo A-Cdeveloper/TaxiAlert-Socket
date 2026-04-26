@@ -3,6 +3,7 @@ import type { Server } from "socket.io";
 
 import { createPublishDriveUpdatedController } from "../controllers/driveEvents.controller.js";
 import { requirePublishAuth } from "../middleware/requirePublishAuth.js";
+import { createPublishDriveLifecycleController } from "../controllers/driveLifecycle.controller.js";
 
 export function createDriveEventsRouter(io: Server): Router {
   const router = Router();
@@ -11,6 +12,12 @@ export function createDriveEventsRouter(io: Server): Router {
     "/drive-updated",
     requirePublishAuth,
     createPublishDriveUpdatedController(io),
+  );
+
+  router.post(
+    "/drive-lifecycle",
+    requirePublishAuth,
+    createPublishDriveLifecycleController(io),
   );
 
   return router;

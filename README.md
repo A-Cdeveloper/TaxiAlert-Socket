@@ -11,6 +11,7 @@ It receives backend publish events and broadcasts normalized `drive-updated` mes
 - `POST /events/drive-lifecycle` client-scoped lifecycle endpoint
 - Publish auth middleware using `Authorization: Bearer <WS_PUBLISH_SECRET>`
 - Typed broadcast payload contract (`DriveUpdatedPayload`)
+- Zod-based request validation for publish endpoints
 - CORS origin allowlist via `WS_ALLOWED_ORIGINS`
 - Background polling to Next internal expire endpoint (`/api/cron/expire-drives`)
 - Poll dedupe (TTL) and overlap guard to prevent duplicate emits and parallel polls
@@ -48,6 +49,9 @@ src/
     driveEvents.ts
     driveLifecycle.ts
     index.ts
+  schemas/
+    driveEvents.schema.ts
+    driveLifecycle.schema.ts
 ```
 
 ## Setup
@@ -150,7 +154,15 @@ Request body:
   "clientId": "uuid-string",
   "driveId": "drive-ddid-string",
   "eventType": "drive.picked_up",
-  "occurredAt": "2026-04-26T12:34:56.000Z"
+  "occurredAt": "2026-04-26T12:34:56.000Z",
+  "driver": {
+    "did": "drv_1",
+    "firstname": "Marko",
+    "lastname": "Jovanovic",
+    "phone": "+381601234567",
+    "car": "Skoda Octavia 2.0 TDI",
+    "plateNumber": "BG-123-AA"
+  }
 }
 ```
 
@@ -159,6 +171,11 @@ Allowed `eventType` values:
 - `drive.picked_up`
 - `drive.released`
 - `drive.completed`
+
+`driver` field rules:
+
+- optional for all lifecycle events
+- when provided, all driver fields are required and validated as non-empty strings
 
 Validation:
 
@@ -195,6 +212,7 @@ Lifecycle publish flow:
 - **Controller** (`src/controllers/driveLifecycle.controller.ts`)
 - **Service** (`src/services/driveLifecyclePublisher.service.ts`)
 - Emits `drive-lifecycle` only to `client:${clientId}` room
+- Uses Zod schema validation before publishing
 
 Expire polling flow:
 

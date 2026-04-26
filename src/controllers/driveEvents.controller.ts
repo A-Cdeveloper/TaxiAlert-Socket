@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import type { Server } from "socket.io";
 
+import { driveUpdatedBodySchema } from "../schemas/driveEvents.schema.js";
 import { publishDriveUpdated } from "../services/driveEventPublisher.service.js";
 
 /**
@@ -8,14 +9,14 @@ import { publishDriveUpdated } from "../services/driveEventPublisher.service.js"
  */
 export function createPublishDriveUpdatedController(io: Server): RequestHandler {
   return (req, res) => {
-    const ddid = typeof req.body?.ddid === "string" ? req.body.ddid : undefined;
-
-    if (!ddid) {
-      res.status(400).json({ ok: false, error: "Drive ID is required" });
+    const parsed = driveUpdatedBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      const [issue] = parsed.error.issues;
+      res.status(400).json({ ok: false, error: issue?.message ?? "Invalid payload" });
       return;
     }
 
-    publishDriveUpdated(io, ddid);
+    publishDriveUpdated(io, parsed.data.ddid);
     res.json({ ok: true });
   };
 }

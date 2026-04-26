@@ -1,6 +1,9 @@
 import type { Server } from "socket.io";
 import { publishDriveUpdated } from "./driveEventPublisher.service.js";
 
+/**
+ * Runtime configuration for expire-drives polling.
+ */
 export type ExpirePollConfig = {
   nextInternalBaseUrl: string;
   nextInternalSecret: string;
@@ -10,6 +13,10 @@ export type ExpirePollConfig = {
 
 const DEDUPE_TTL_MS = 30_000;
 
+/**
+ * Starts a resilient polling loop that requests expired drives from the Next
+ * backend and emits deduplicated `drive-updated` events.
+ */
 export function startExpireDrivesPoller(
   io: Server,
   config: ExpirePollConfig,

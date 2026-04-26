@@ -1,5 +1,8 @@
 import type { Server } from "socket.io";
 
+/**
+ * Registers socket connection lifecycle and room subscription events.
+ */
 export function registerSocketHandlers(io: Server): void {
   io.on("connection", (socket) => {
     console.log("Socket connected:", socket.id);

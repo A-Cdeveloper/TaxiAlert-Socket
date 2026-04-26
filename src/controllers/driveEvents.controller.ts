@@ -3,6 +3,9 @@ import type { Server } from "socket.io";
 
 import { publishDriveUpdated } from "../services/driveEventPublisher.service.js";
 
+/**
+ * Creates a handler for secured HTTP publish requests of `drive-updated`.
+ */
 export function createPublishDriveUpdatedController(io: Server): RequestHandler {
   return (req, res) => {
     const ddid = typeof req.body?.ddid === "string" ? req.body.ddid : undefined;

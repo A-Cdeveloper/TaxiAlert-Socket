@@ -1,5 +1,9 @@
 import type { NextFunction, Request, Response } from "express";
 
+/**
+ * Validates internal publish token sent via `Authorization: Bearer <token>`.
+ * Rejects requests when the secret is missing or invalid.
+ */
 export function requirePublishAuth(
   req: Request,
   res: Response,

@@ -5,11 +5,17 @@ import { publishDriveLifecycle } from "../services/driveLifecyclePublisher.servi
 import { DRIVE_LIFECYCLE_EVENT_TYPES } from "../types/driveLifecycle.js";
 import type { DriveLifecyclePayload } from "../types/index.js";
 
+/**
+ * Basic ISO datetime validation used for lifecycle payload checks.
+ */
 function isValidIsoDate(value: string): boolean {
   const ms = Date.parse(value);
   return Number.isFinite(ms);
 }
 
+/**
+ * Creates a handler for secured HTTP publish requests of `drive-lifecycle`.
+ */
 export function createPublishDriveLifecycleController(
   io: Server,
 ): RequestHandler {

@@ -5,6 +5,9 @@ import { createPublishDriveUpdatedController } from "../controllers/driveEvents.
 import { requirePublishAuth } from "../middleware/requirePublishAuth.js";
 import { createPublishDriveLifecycleController } from "../controllers/driveLifecycle.controller.js";
 
+/**
+ * Creates the `/events` router with secured publish endpoints.
+ */
 export function createDriveEventsRouter(io: Server): Router {
   const router = Router();
 

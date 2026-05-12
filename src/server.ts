@@ -1,21 +1,21 @@
 import "dotenv/config";
-import express from "express";
 import http from "node:http";
+import express from "express";
 import { Server } from "socket.io";
 
-import { createDriveEventsRouter } from "./routes/index.js";
-import { registerSocketHandlers } from "./socket/index.js";
+import { configureHttpApp } from "./createHttpApp.js";
 import { startExpireDrivesPoller } from "./services/expireDrivesPoller.service.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? "3001");
-const httpServer = http.createServer(app);
 const allowedOrigins = (
   process.env.WS_ALLOWED_ORIGINS ?? "http://localhost:3000"
 )
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+
+const httpServer = http.createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: allowedOrigins,
@@ -34,14 +34,7 @@ if (!nextInternalBaseUrl || !nextInternalSecret) {
   throw new Error("Missing NEXT_INTERNAL_BASE_URL or NEXT_INTERNAL_SECRET");
 }
 
-app.use(express.json());
-
-app.get("/health", (_req, res) => {
-  res.json({ ok: true });
-});
-
-registerSocketHandlers(io);
-app.use("/events", createDriveEventsRouter(io));
+configureHttpApp(app, io);
 
 startExpireDrivesPoller(io, {
   nextInternalBaseUrl,
@@ -50,6 +43,4 @@ startExpireDrivesPoller(io, {
   lookbackMs: expireLookbackMs,
 });
 
-httpServer.listen(port, () => {
-  console.log(`HTTP listening on http://localhost:${port}`);
-});
+httpServer.listen(port);

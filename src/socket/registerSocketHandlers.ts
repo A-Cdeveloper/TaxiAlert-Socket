@@ -5,8 +5,6 @@ import type { Server } from "socket.io";
  */
 export function registerSocketHandlers(io: Server): void {
   io.on("connection", (socket) => {
-    console.log("Socket connected:", socket.id);
-
     socket.on(
       "subscribe-client-room",
       ({ clientId }: { clientId?: string }) => {
@@ -20,9 +18,5 @@ export function registerSocketHandlers(io: Server): void {
         socket.join(`client:${normalizedClientId}`);
       },
     );
-
-    socket.on("disconnect", (reason) => {
-      console.log("Socket disconnected:", socket.id, reason);
-    });
   });
 }

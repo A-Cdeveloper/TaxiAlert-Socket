@@ -83,11 +83,6 @@ export function startExpireDrivesPoller(
         }
       }
 
-      if (data.ddids.length > 0) {
-        console.log("[expire-poll] emitted drive-updated", {
-          count: data.ddids.length,
-        });
-      }
     } catch (error) {
       console.error("[expire-poll] error", error);
     } finally {

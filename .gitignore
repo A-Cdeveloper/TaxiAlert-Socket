@@ -1,5 +1,5 @@
 node_modules
-.env
+.env*
 dist
 WS_SERVER_INSTRUCTIONS.md
 

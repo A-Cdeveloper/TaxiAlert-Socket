@@ -16,6 +16,7 @@ It receives backend publish events and broadcasts normalized `drive-updated` mes
 - Background polling to Next internal expire endpoint (`/api/cron/expire-drives`)
 - Poll dedupe (TTL) and overlap guard to prevent duplicate emits and parallel polls
 - Route/controller/service split for clearer backend architecture
+- Vitest test suite (schemas, HTTP routes, services, socket handlers, and poller behavior)
 
 ## Tech Stack
 
@@ -25,12 +26,14 @@ It receives backend publish events and broadcasts normalized `drive-updated` mes
 - Socket.IO
 - dotenv
 - Zod
+- Vitest, Supertest, and `@vitest/coverage-v8` (development and CI)
 
 ## Project Structure
 
 ```text
 src/
   server.ts
+  createHttpApp.ts
   controllers/
     driveEvents.controller.ts
     driveLifecycle.controller.ts
@@ -53,6 +56,15 @@ src/
   schemas/
     driveEvents.schema.ts
     driveLifecycle.schema.ts
+
+__tests__/
+  schemas/
+  middleware/
+  controllers/
+  routes/
+  services/
+  socket/
+  server/
 ```
 
 ## Setup
@@ -101,6 +113,13 @@ npm start
 - `npm run dev` - run dev server with `tsx watch`
 - `npm run build` - compile TypeScript to `dist`
 - `npm start` - run compiled server from `dist/server.js`
+- `npm test` - run the Vitest suite once (`vitest run`)
+- `npm run test:watch` - run Vitest in watch mode
+- `npm run test:coverage` - run tests with V8 coverage (output under `coverage/`; the folder is gitignored)
+
+## Testing
+
+Automated tests live under `__tests__/` and are picked up by `vitest.config.ts` (`*.test.ts` / `*.spec.ts`). They cover Zod schemas, publish auth middleware, controllers, HTTP routes (via Supertest), publisher and poller services, socket subscription handlers, and `GET /health` through the shared `configureHttpApp` wiring in `src/createHttpApp.ts` (so tests do not bootstrap the full `server.ts` entrypoint).
 
 ## API
 
@@ -195,9 +214,9 @@ Socket behavior:
 `server.ts` keeps only application wiring:
 
 - create Express app + HTTP server + Socket.IO
-- register middleware and health endpoint
-- register socket lifecycle handlers
-- mount drive event routes under `/events`
+- validate required Next internal env vars for expire polling
+- call `configureHttpApp(app, io)` from `createHttpApp.ts` (JSON body parser, `GET /health`, socket handlers, `/events` router)
+- start the expire-drives poller and listen on `PORT`
 
 Drive publish handling uses Option 1 layering:
 
@@ -249,7 +268,7 @@ socket.emit("subscribe-client-room", { clientId: "client-123" });
 - Keep `.env` out of version control
 - Rotate `WS_PUBLISH_SECRET` regularly
 - This service is intentionally focused on realtime event fan-out, not business logic ownership
-- `npm test` is currently a placeholder script; consider adding a small smoke test (for example hitting `/health` or validating a sample publish payload) when you want automated checks in CI
+- Run `npm test` (or `npm run test:coverage`) in CI after `npm run build` for a quick regression check
 
 ## License
 
